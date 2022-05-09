@@ -10,7 +10,7 @@ import { Restaurant } from './entities/restaurant.entity';
  */
 
 @Injectable()
-export class RestaurantService {
+export class RestaurantsService {
   constructor(
     @InjectRepository(Restaurant)
     private readonly restaurants: Repository<Restaurant>,
