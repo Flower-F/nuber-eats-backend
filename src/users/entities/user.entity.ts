@@ -5,7 +5,8 @@ import {
   ObjectType,
   registerEnumType,
 } from '@nestjs/graphql';
-import { hash } from 'bcrypt';
+import { compare, hash } from 'bcrypt';
+import { IsEmail, IsEnum } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { BeforeInsert, Column, Entity } from 'typeorm';
 
@@ -24,6 +25,7 @@ registerEnumType(UserRole, { name: 'UserRole' });
 export class User extends CoreEntity {
   @Column()
   @Field(() => String)
+  @IsEmail()
   email: string;
 
   @Column()
@@ -32,12 +34,23 @@ export class User extends CoreEntity {
 
   @Column({ type: 'enum', enum: UserRole })
   @Field(() => UserRole)
+  @IsEnum(UserRole)
   role: UserRole;
 
   @BeforeInsert()
   async hashPassword() {
     try {
-      this.password = await hash(this.password, 10);
+      this.password = await hash(this.password, 10); // 计算 hash 值
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerErrorException();
+    }
+  }
+
+  async checkPassword(aPassword: string) {
+    try {
+      const ok = await compare(aPassword, this.password); // 比较密码是否相同
+      return ok;
     } catch (error) {
       console.log(error);
       throw new InternalServerErrorException();
