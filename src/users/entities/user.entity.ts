@@ -8,7 +8,7 @@ import {
 import { compare, hash } from 'bcrypt';
 import { IsEmail, IsEnum } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
-import { BeforeInsert, Column, Entity } from 'typeorm';
+import { BeforeInsert, BeforeUpdate, Column, Entity } from 'typeorm';
 
 // 权限管理，商家、买家、外卖员
 enum UserRole {
@@ -38,6 +38,7 @@ export class User extends CoreEntity {
   role: UserRole;
 
   @BeforeInsert()
+  @BeforeUpdate()
   async hashPassword() {
     try {
       this.password = await hash(this.password, 10); // 计算 hash 值
