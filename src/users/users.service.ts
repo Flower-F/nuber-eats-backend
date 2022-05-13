@@ -43,7 +43,10 @@ export class UsersService {
     password,
   }: LoginInput): Promise<{ ok: boolean; error?: string; token?: string }> {
     try {
-      const user = await this.users.findOne({ email });
+      const user = await this.users.findOne(
+        { email },
+        { select: ['password', 'id'] },
+      );
       if (!user) {
         return { ok: false, error: 'User not found' };
       }
@@ -79,5 +82,24 @@ export class UsersService {
     }
 
     return this.users.save(user);
+  }
+
+  async verifyEmail(code: string) {
+    try {
+      const verification = await this.verifications.findOne(
+        { code },
+        { relations: ['user'] },
+      );
+      if (verification) {
+        // console.log(verification);
+        verification.user.verified = true;
+        this.users.save(verification.user);
+        return true;
+      }
+      throw new Error('The code is wrong');
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
   }
 }
