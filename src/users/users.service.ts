@@ -12,6 +12,7 @@ import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
 import { Verification } from './entities/verification.entity';
 import { VerifyEmailOutput } from './dtos/verify-email.dto';
 import { UserProfileInput, UserProfileOutput } from './dtos/user-profile.dto';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class UsersService {
@@ -20,6 +21,7 @@ export class UsersService {
     @InjectRepository(Verification)
     private readonly verifications: Repository<Verification>,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async createAccount({
@@ -36,7 +38,10 @@ export class UsersService {
       const user = await this.users.save(
         this.users.create({ email, password, role }),
       );
-      await this.verifications.save(this.verifications.create({ user }));
+      const verification = await this.verifications.save(
+        this.verifications.create({ user }),
+      );
+      this.mailService.sendVerificationEmail(user.email, verification.code);
       return { ok: true };
     } catch (error) {
       return { ok: false, error: "Couldn't create account" };
@@ -91,17 +96,32 @@ export class UsersService {
   }
 
   async editProfile(
-    userId: number,
+    id: number,
     { email, password }: EditProfileInput,
   ): Promise<EditProfileOutput> {
     // 这里不使用 update 的原因是：Does not check if entity exist in the database
     // this.users.update(userId, { ...editProfileInput });
     try {
-      const user = await this.users.findOne(userId);
+      const user = await this.findById(id);
+
       if (email) {
+        const exists = await this.users.findOne({ email });
+        if (exists) {
+          return {
+            ok: false,
+            error: 'There is a user with that email already.',
+          };
+        }
+
         user.email = email;
         user.verified = false;
-        await this.verifications.save(this.verifications.create({ user }));
+        const v = await this.verifications.findOne({ user: { id } });
+        console.log('test', v);
+        await this.verifications.delete({ user: { id } });
+        const verification = await this.verifications.save(
+          this.verifications.create({ user }),
+        );
+        this.mailService.sendVerificationEmail(user.email, verification.code);
       }
       if (password) {
         user.password = password;
@@ -122,7 +142,8 @@ export class UsersService {
       );
       if (verification) {
         verification.user.verified = true;
-        this.users.save(verification.user);
+        await this.users.save(verification.user); // 存储用户数据
+        await this.verifications.delete(verification.id); // 删除验证码
         return { ok: true };
       }
       throw new Error('The code is wrong');

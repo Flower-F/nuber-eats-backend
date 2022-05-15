@@ -6,7 +6,7 @@ import {
   registerEnumType,
 } from '@nestjs/graphql';
 import { compare, hash } from 'bcrypt';
-import { IsEmail, IsEnum } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsString } from 'class-validator';
 import { CoreEntity } from 'src/common/entities/core.entity';
 import { BeforeInsert, BeforeUpdate, Column, Entity } from 'typeorm';
 
@@ -30,6 +30,7 @@ export class User extends CoreEntity {
 
   @Column({ select: false })
   @Field(() => String)
+  @IsString()
   password: string;
 
   @Column({ type: 'enum', enum: UserRole })
@@ -39,6 +40,7 @@ export class User extends CoreEntity {
 
   @Column({ default: false })
   @Field(() => Boolean)
+  @IsBoolean()
   verified: boolean;
 
   @BeforeInsert()
@@ -56,8 +58,7 @@ export class User extends CoreEntity {
 
   async checkPassword(aPassword: string) {
     try {
-      const ok = await compare(aPassword, this.password); // 比较密码是否相同
-      return ok;
+      return await compare(aPassword, this.password); // 比较密码是否相同
     } catch (error) {
       console.log(error);
       throw new InternalServerErrorException();
