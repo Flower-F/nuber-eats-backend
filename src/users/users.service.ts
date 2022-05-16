@@ -11,7 +11,6 @@ import { JwtService } from 'src/jwt/jwt.service';
 import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
 import { Verification } from './entities/verification.entity';
 import { VerifyEmailOutput } from './dtos/verify-email.dto';
-import { UserProfileInput, UserProfileOutput } from './dtos/user-profile.dto';
 import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
@@ -72,26 +71,11 @@ export class UsersService {
   }
 
   async findById(id: number) {
-    return this.users.findOne({ id });
-  }
-
-  async userProfile(
-    userProfileInput: UserProfileInput,
-  ): Promise<UserProfileOutput> {
     try {
-      const user = await this.findById(userProfileInput.userId);
-      if (!user) {
-        throw new Error('User not found');
-      }
-      return {
-        ok: true,
-        user,
-      };
+      const user = await this.users.findOneOrFail({ id });
+      return { ok: true, user };
     } catch (error) {
-      return {
-        error,
-        ok: false,
-      };
+      return { ok: false, error: 'User not found' };
     }
   }
 
@@ -102,21 +86,11 @@ export class UsersService {
     // 这里不使用 update 的原因是：Does not check if entity exist in the database
     // this.users.update(userId, { ...editProfileInput });
     try {
-      const user = await this.findById(id);
+      const user = await this.users.findOne(id);
 
       if (email) {
-        const exists = await this.users.findOne({ email });
-        if (exists) {
-          return {
-            ok: false,
-            error: 'There is a user with that email already.',
-          };
-        }
-
         user.email = email;
         user.verified = false;
-        const v = await this.verifications.findOne({ user: { id } });
-        console.log('test', v);
         await this.verifications.delete({ user: { id } });
         const verification = await this.verifications.save(
           this.verifications.create({ user }),
@@ -130,7 +104,7 @@ export class UsersService {
 
       return { ok: true };
     } catch (error) {
-      return { ok: false, error };
+      return { ok: false, error: 'Could not update profile' };
     }
   }
 
@@ -146,9 +120,9 @@ export class UsersService {
         await this.verifications.delete(verification.id); // 删除验证码
         return { ok: true };
       }
-      throw new Error('The code is wrong');
+      return { ok: false, error: 'Verification not found' };
     } catch (error) {
-      return { ok: false, error };
+      return { ok: false, error: 'Could not verify email' };
     }
   }
 }
